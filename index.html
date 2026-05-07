@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecorregiones del Perú - Proyecto CCSS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+            color: white;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL --- */
+        .escena {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* --- MAPA --- */
+        .contenedor-imagen {
+            position: relative;
+            border-radius: 15px;
+            background: white;
+            padding: 8px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+            z-index: 2;
+            transition: transform 0.1s ease-out;
+        }
+
+        img.mapa {
+            display: block;
+            width: auto;
+            max-width: 45vw;
+            max-height: 70vh;
+            border-radius: 10px;
+        }
+
+        /* --- BOTONES (Modo PC por defecto) --- */
+        .boton-flotante {
+            position: fixed; /* En PC son fijos para el parallax */
+            z-index: 10;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transition: transform 0.2s, background 0.3s;
+            padding: 10px 15px;
+            text-transform: uppercase;
+        }
+
+        .boton-flotante:hover { transform: scale(1.1); border-color: white; background: rgba(255,255,255,0.1); }
+
+        /* --- VISOR (LIGHTBOX) --- */
+        #visor-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+        }
+
+        #contenedor-visor { position: relative; width: 90%; max-width: 900px; text-align: center; }
+        #img-visor { max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 40px black; }
+        
+        .btn-visor {
+            position: absolute; background: rgba(255,255,255,0.1); color: white;
+            border: 1px solid rgba(255,255,255,0.2); width: 50px; height: 50px;
+            border-radius: 50%; font-size: 24px; cursor: pointer; z-index: 2010;
+        }
+        #btn-cerrar { top: -60px; right: 0; border-radius: 8px; }
+        #btn-prev { left: -70px; top: 50%; transform: translateY(-50%); }
+        #btn-next { right: -70px; top: 50%; transform: translateY(-50%); }
+
+        /* --- PANELES INFERIORES --- */
+        .panel-inferior {
+            position: fixed; bottom: 20px; z-index: 100;
+            background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; padding: 12px; backdrop-filter: blur(10px);
+        }
+        #panel-integrantes { left: 20px; width: 250px; }
+        #controles { right: 20px; }
+
+        .lista-integrantes { display: flex; flex-direction: column; gap: 5px; max-height: 0; overflow: hidden; transition: 0.4s; }
+        .lista-integrantes.activo { max-height: 300px; margin-bottom: 10px; }
+        .integrante { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; font-size: 11px; }
+
+        /* --- MODO MÓVIL (Smartphones) --- */
+        @media (max-width: 1024px) {
+            body { overflow-y: auto; justify-content: flex-start; padding-top: 40px; }
+            .escena { flex-direction: column; }
+            
+            img.mapa { max-width: 85vw; max-height: none; }
+            
+            /* Los botones dejan de ser fijos y se vuelven una cuadrícula */
+            #contenedor-botones-movil {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                width: 100%;
+                max-width: 500px;
+                margin-top: 30px;
+                padding-bottom: 150px; /* Espacio para los paneles */
+            }
+
+            .boton-flotante {
+                position: relative !important; /* Quitamos el cálculo de JS */
+                left: auto !important; top: auto !important;
+                width: 100% !important; height: auto !important;
+                padding: 15px 10px;
+                font-size: 10px;
+            }
+
+            #btn-prev, #btn-next { position: fixed; bottom: 80px; top: auto; transform: none; }
+            #btn-prev { left: 20px; } #btn-next { right: 20px; }
+            #btn-cerrar { top: 20px; right: 20px; }
+            
+            #panel-integrantes, #controles { position: relative; left: auto; right: auto; bottom: auto; width: 90%; margin: 10px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="escena">
+        <div class="contenedor-imagen" id="mapa-container">
+            <img class="mapa" src="Mapa.jpg" alt="Mapa del Perú">
+        </div>
+
+        <div id="contenedor-botones-movil"></div>
+    </div>
+
+    <div id="visor-overlay">
+        <div id="contenedor-visor">
+            <button id="btn-cerrar" class="btn-visor">✕</button>
+            <button id="btn-prev" class="btn-visor">‹</button>
+            <img id="img-visor" src="" alt="Imagen">
+            <button id="btn-next" class="btn-visor">›</button>
+        </div>
+    </div>
+
+    <div id="panel-integrantes" class="panel-inferior" onclick="toggleIntegrantes()">
+        <div class="lista-integrantes" id="lista-integ">
+            <div class="integrante">Lia Guadalupe Torres Roque</div>
+            <div class="integrante">Josue Sebastián Nolázco De la Cruz</div>
+            <div class="integrante">Kevin Pascual Torres Crisostomo</div>
+            <div class="integrante">Alessandro Del Piero Rojas Belleza</div>
+        </div>
+        <div style="font-size: 10px; color: #888; display: flex; justify-content: space-between;">
+            <span>INTEGRANTES</span><span id="flecha">▲</span>
+        </div>
+    </div>
+
+    <div id="controles" class="panel-inferior">
+        <label style="font-size: 9px; display: block; margin-bottom: 5px;">
+            <input type="checkbox" id="chk-parallax" checked> PARALLAX
+        </label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="changeZoom(-0.1)" style="width:25px; height:25px;">-</button>
+            <span id="zoom-val" style="font-size:11px;">100%</span>
+            <button onclick="changeZoom(0.1)" style="width:25px; height:25px;">+</button>
+        </div>
+    </div>
+
+    <script>
+        const datosEcorregiones = [
+            { id: 1,  n: "Mar Frío", c: "rgba(0, 119, 190, 0.5)", f: [1, 2] },
+            { id: 2,  n: "Mar Tropical", c: "rgba(0, 191, 255, 0.5)", f: [3, 4] },
+            { id: 3,  n: "Desierto del Pacífico", c: "rgba(237, 201, 175, 0.5)", f: [5, 6] },
+            { id: 4,  n: "Bosque Seco", c: "rgba(184, 134, 11, 0.5)", f: [7, 8] },
+            { id: 5,  n: "Bosque Tropical", c: "rgba(34, 139, 34, 0.5)", f: [9, 10] },
+            { id: 6,  n: "Serranía Esteparia", c: "rgba(139, 69, 19, 0.5)", f: [11, 12] },
+            { id: 7,  n: "Páramo", c: "rgba(75, 0, 130, 0.5)", f: [13, 14] },
+            { id: 8,  n: "Puna", c: "rgba(105, 105, 105, 0.5)", f: [15, 16] },
+            { id: 9,  n: "Selva Alta", c: "rgba(0, 255, 127, 0.5)", f: [17, 18] },
+            { id: 10, n: "Selva Baja", c: "rgba(0, 100, 0, 0.6)", f: [19, 20] },
+            { id: 11, n: "Sabana de Palmeras", c: "rgba(255, 215, 0, 0.5)", f: [21, 22] }
+        ];
+
+        let carpetaActual = 1;
+        let fotoIndice = 0;
+        let zoom = 1.0;
+        const botonesData = [];
+
+        function crearBotones() {
+            const container = document.getElementById('contenedor-botones-movil');
+            container.innerHTML = '';
+            botonesData.length = 0;
+
+            const rect = document.getElementById('mapa-container').getBoundingClientRect();
+            const esMovil = window.innerWidth <= 1024;
+
+            datosEcorregiones.forEach((eco, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'boton-flotante';
+                btn.innerHTML = eco.n;
+                btn.style.backgroundColor = eco.c;
+                btn.onclick = () => {
+                    carpetaActual = eco.id;
+                    fotoIndice = 0;
+                    actualizarImagen();
+                    document.getElementById('visor-overlay').style.display = 'flex';
+                };
+
+                // Posicionamiento solo para PC
+                if (!esMovil) {
+                    const bw = 180, bh = 45, sep = 60;
+                    let x, y;
+                    if (i < 5) { // Izquierda
+                        x = rect.left - bw - sep;
+                        y = rect.top + (rect.height * (i + 1) / 6) - bh / 2;
+                    } else if (i < 10) { // Derecha
+                        x = rect.right + sep;
+                        y = rect.top + (rect.height * (i - 4) / 6) - bh / 2;
+                    } else { // Abajo centro
+                        x = rect.left + (rect.width / 2) - bw / 2;
+                        y = rect.bottom + sep;
+                    }
+                    btn.style.width = bw + 'px';
+                    btn.style.height = bh + 'px';
+                    btn.style.left = x + 'px';
+                    btn.style.top = y + 'px';
+                    botonesData.push({ el: btn, ox: x, oy: y });
+                }
+
+                container.appendChild(btn);
+            });
+        }
+
+        // --- LÓGICA VISOR ---
+        function actualizarImagen() {
+            const eco = datosEcorregiones[carpetaActual - 1];
+            document.getElementById('img-visor').src = `Eco${carpetaActual}/${eco.f[fotoIndice]}.png`;
+        }
+        document.getElementById('btn-next').onclick = () => { fotoIndice = 1; actualizarImagen(); };
+        document.getElementById('btn-prev').onclick = () => { fotoIndice = 0; actualizarImagen(); };
+        document.getElementById('btn-cerrar').onclick = () => { document.getElementById('visor-overlay').style.display = 'none'; };
+
+        // --- PARALLAX ---
+        let tx = 0, ty = 0, cx = 0, cy = 0;
+        document.addEventListener('mousemove', (e) => {
+            if (window.innerWidth > 1024 && document.getElementById('chk-parallax').checked) {
+                tx = (window.innerWidth / 2 - e.clientX) / 25;
+                ty = (window.innerHeight / 2 - e.clientY) / 25;
+            }
+        });
+
+        function loop() {
+            cx += (tx - cx) * 0.1;
+            cy += (ty - cy) * 0.1;
+            
+            const mapa = document.getElementById('mapa-container');
+            mapa.style.transform = `translate(${cx}px, ${cy}px) scale(${zoom})`;
+
+            if (window.innerWidth > 1024) {
+                botonesData.forEach(b => {
+                    b.el.style.left = (b.ox + cx * 0.6) + 'px';
+                    b.el.style.top = (b.oy + cy * 0.6) + 'px';
+                });
+            }
+            requestAnimationFrame(loop);
+        }
+
+        function toggleIntegrantes() {
+            document.getElementById('lista-integ').classList.toggle('activo');
+            document.getElementById('flecha').innerText = document.getElementById('lista-integ').classList.contains('activo') ? '▼' : '▲';
+        }
+
+        function changeZoom(v) {
+            zoom = Math.min(2, Math.max(0.5, zoom + v));
+            document.getElementById('zoom-val').innerText = Math.round(zoom * 100) + '%';
+            crearBotones();
+        }
+
+        window.onload = () => { crearBotones(); loop(); };
+        window.onresize = crearBotones;
+    </script>
+</body>
+</html>
